@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Gerenciador de Karaokê</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h2 {
+      text-align: center;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      font-size: 16px;
+    }
+    button {
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: white;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border: 1px solid #ddd;
+    }
+    .status-espera {
+      background-color: #f1c40f;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: #000;
+      cursor: pointer;
+    }
+    .status-cantou {
+      background-color: #2ecc71;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎤 Fila do Karaokê</h2>
+
+  <input id="nome" placeholder="Nome do cliente">
+  <input id="musica" placeholder="Nome da música (opcional)">
+  <button id="btnAdicionar">Adicionar à fila</button>
+
+  <table id="tabelaPedidos">
+    <thead>
+      <tr>
+        <th>Senha</th>
+        <th>Nome</th>
+        <th>Música</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    let fila = [];
+    let contador = 1;
+
+    function atualizarTabela() {
+      const tbody = document.querySelector('#tabelaPedidos tbody');
+      tbody.innerHTML = '';
+      fila.forEach((p, index) => {
+        const tr = document.createElement('tr');
+
+tr.innerHTML = `
+  <td>${p.senha}</td>
+  <td>${p.nome}</td>
+  <td><input type="text" value="${p.musica}" onchange="editarMusica(${index}, this.value)" style="width: 100%"></td>
+  <td><span class="${p.status === 'Já cantou' ? 'status-cantou' : 'status-espera'}" onclick="alternarStatus(${index})">${p.status}</span></td>
+`;
+
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function editarMusica(index, novaMusica) {
+      fila[index].musica = novaMusica;
+      atualizarTabela();
+    }
+
+    function alternarStatus(index) {
+      fila[index].status = fila[index].status === 'Já cantou' ? 'Em espera' : 'Já cantou';
+      atualizarTabela();
+    }
+
+    document.getElementById('btnAdicionar').addEventListener('click', () => {
+      const nome = document.getElementById('nome').value.trim();
+      const musica = document.getElementById('musica').value.trim();
+      if (!nome) return alert("Nome obrigatório!");
+
+      const senha = String(contador++).padStart(3, '0');
+      const pedido = { nome, musica, senha, status: "Em espera" };
+
+      fila.push(pedido);
+      ipcRenderer.send('imprimir-pedido', pedido);
+      atualizarTabela();
+      document.getElementById('nome').value = '';
+      document.getElementById('musica').value = '';
+    });
+  </script>
+</body>
+</html>

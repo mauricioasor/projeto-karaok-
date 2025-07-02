@@ -4,55 +4,24 @@
   <meta charset="UTF-8">
   <title>Gerenciador de Karaokê</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
-    h2 {
-      text-align: center;
-    }
-    input, button {
-      width: 100%;
-      padding: 10px;
-      margin: 6px 0;
-      font-size: 16px;
-    }
-    button {
-      background-color: #2980b9;
-      color: white;
-      border: none;
-      border-radius: 5px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background-color: white;
-    }
-    th, td {
-      padding: 10px;
-      text-align: left;
-      border: 1px solid #ddd;
-    }
-    .status-espera {
-      background-color: #f1c40f;
-      padding: 4px 8px;
-      border-radius: 4px;
-      color: #000;
-      cursor: pointer;
-    }
-    .status-cantou {
-      background-color: #2ecc71;
-      padding: 4px 8px;
-      border-radius: 4px;
-      color: #fff;
-      cursor: pointer;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    h2 { margin: 0; text-align: left; }
+    #btnConfig { background-color: #7f8c8d; width: auto; padding: 10px 20px; }
+    input, button { width: 100%; padding: 10px; margin: 6px 0; font-size: 16px; box-sizing: border-box; }
+    button { background-color: #2980b9; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: white; }
+    th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+    .status-espera { background-color: #f1c40f; padding: 4px 8px; border-radius: 4px; color: #000; cursor: pointer; user-select: none; }
+    .status-cantou { background-color: #2ecc71; padding: 4px 8px; border-radius: 4px; color: #fff; cursor: pointer; user-select: none; }
+    #btnResetarFila { background-color: #e74c3c; }
   </style>
 </head>
 <body>
-  <h2>🎤 Fila do Karaokê</h2>
+  <div class="header">
+      <h2>🎤 Fila do Karaokê</h2>
+      <button id="btnConfig">Configurações</button>
+  </div>
 
   <input id="nome" placeholder="Nome do cliente">
   <input id="musica" placeholder="Nome da música (opcional)">
@@ -70,6 +39,8 @@
     <tbody></tbody>
   </table>
 
+  <button id="btnResetarFila" style="margin-top: 20px;">Resetar Fila</button>
+
   <script>
     const { ipcRenderer } = require('electron');
     let fila = [];
@@ -80,33 +51,39 @@
       tbody.innerHTML = '';
       fila.forEach((p, index) => {
         const tr = document.createElement('tr');
-
-tr.innerHTML = `
-  <td>${p.senha}</td>
-  <td>${p.nome}</td>
-  <td><input type="text" value="${p.musica}" onchange="editarMusica(${index}, this.value)" style="width: 100%"></td>
-  <td><span class="${p.status === 'Já cantou' ? 'status-cantou' : 'status-espera'}" onclick="alternarStatus(${index})">${p.status}</span></td>
-`;
-
-
+        tr.innerHTML = `
+          <td>${p.senha}</td>
+          <td>${p.nome}</td>
+          <td><input type="text" value="${p.musica}" onchange="editarMusica(${index}, this.value)" style="width: 100%"></td>
+          <td><span class="${p.status === 'Já cantou' ? 'status-cantou' : 'status-espera'}" onclick="alternarStatus(${index})">${p.status}</span></td>
+        `;
         tbody.appendChild(tr);
       });
     }
 
     function editarMusica(index, novaMusica) {
       fila[index].musica = novaMusica;
-      atualizarTabela();
     }
 
     function alternarStatus(index) {
       fila[index].status = fila[index].status === 'Já cantou' ? 'Em espera' : 'Já cantou';
       atualizarTabela();
     }
+    
+    document.getElementById('btnConfig').addEventListener('click', () => {
+        ipcRenderer.send('open-settings-window');
+    });
 
     document.getElementById('btnAdicionar').addEventListener('click', () => {
-      const nome = document.getElementById('nome').value.trim();
-      const musica = document.getElementById('musica').value.trim();
-      if (!nome) return alert("Nome obrigatório!");
+      const nomeInput = document.getElementById('nome');
+      const musicaInput = document.getElementById('musica');
+      const nome = nomeInput.value.trim();
+      const musica = musicaInput.value.trim();
+      
+      if (!nome) {
+        ipcRenderer.send('mostrar-alerta', 'O campo "Nome" é obrigatório!');
+        return;
+      }
 
       const senha = String(contador++).padStart(3, '0');
       const pedido = { nome, musica, senha, status: "Em espera" };
@@ -114,8 +91,20 @@ tr.innerHTML = `
       fila.push(pedido);
       ipcRenderer.send('imprimir-pedido', pedido);
       atualizarTabela();
-      document.getElementById('nome').value = '';
-      document.getElementById('musica').value = '';
+      
+      nomeInput.value = '';
+      musicaInput.value = '';
+      nomeInput.focus();
+    });
+
+    document.getElementById('btnResetarFila').addEventListener('click', () => {
+      ipcRenderer.send('confirmar-resetar-fila');
+    });
+
+    ipcRenderer.on('fila-resetada-confirmada', () => {
+      fila = [];
+      contador = 1;
+      atualizarTabela();
     });
   </script>
 </body>

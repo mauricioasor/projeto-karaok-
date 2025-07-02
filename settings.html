@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Configurações de Impressora</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f0f0f0; }
+        h2 { text-align: center; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select { width: 100%; padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
+        .buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        button { padding: 10px 20px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; color: white; }
+        #btnSalvar { background-color: #2ecc71; }
+        #btnCancelar { background-color: #e74c3c; }
+        #status { text-align: center; margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>⚙️ Configurar Impressora</h2>
+    <div class="form-group">
+        <label for="printerList">Selecione a impressora a ser usada:</label>
+        <select id="printerList">
+            <option value="">Carregando impressoras...</option>
+        </select>
+    </div>
+    <div class="buttons">
+        <button id="btnCancelar">Cancelar</button>
+        <button id="btnSalvar">Salvar</button>
+    </div>
+    <div id="status"></div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const select = document.getElementById('printerList');
+            try {
+                const impressoras = await ipcRenderer.invoke('get-printers');
+                const configAtual = await ipcRenderer.invoke('get-current-settings');
+
+                select.innerHTML = '<option value="">-- Nenhuma --</option>';
+
+                impressoras.forEach(printer => {
+                    const option = document.createElement('option');
+                    option.value = printer.name;
+                    option.textContent = printer.name;
+                    if (printer.isDefault) {
+                        option.textContent += ' (Padrão)';
+                    }
+                    select.appendChild(option);
+                });
+                
+                if (configAtual && configAtual.printerName) {
+                    select.value = configAtual.printerName;
+                }
+            } catch (error) {
+                console.error("Erro ao carregar configurações:", error);
+                select.innerHTML = '<option>Erro ao carregar impressoras</option>';
+            }
+        });
+
+        document.getElementById('btnSalvar').addEventListener('click', () => {
+            const selectedPrinter = document.getElementById('printerList').value;
+            const statusDiv = document.getElementById('status');
+            
+            if (!selectedPrinter) {
+                statusDiv.textContent = 'Por favor, selecione uma impressora.';
+                statusDiv.style.color = 'red';
+                return;
+            }
+            ipcRenderer.send('save-settings', { printerName: selectedPrinter });
+            statusDiv.textContent = 'Configurações salvas!';
+            statusDiv.style.color = 'green';
+            setTimeout(() => {
+                ipcRenderer.send('close-settings-window');
+            }, 1000);
+        });
+        
+        document.getElementById('btnCancelar').addEventListener('click', () => {
+            ipcRenderer.send('close-settings-window');
+        });
+    </script>
+</body>
+</html>
